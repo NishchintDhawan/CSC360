@@ -62,7 +62,6 @@ int main(){
 
 				free(temp);
 				char *argv[len];
-
 				/* parse the input cmd (e.g., with strtok)*/
 
 				/* get the first token */
@@ -76,10 +75,11 @@ int main(){
 					strcpy(value,token);
 
 					argv[i] = value;
-				//s	printf("%s  \n",argv[i]);
+					//printf("%s  \n",argv[i]);
 					i++;
 					token = strtok(NULL, " ");
    				}
+				argv[i]=NULL;
 				cmd_type=argv[0];
                 if (strcmp(cmd_type, CMD_BG)==0){
                       bg_entry(&argv[1]);
@@ -102,11 +102,9 @@ int main(){
                 // }
        			 //      check_zombieProcess();
 
-				// char *release = argv[0];
-				// for(i=0; release;i++){
-				// 	free(argv[i]);
-				// 	release=argv[i+1];
-				// }
+				for(int i=0;i<len;i++){
+					free(argv[i]);
+				}			
         }
         return 0;
 }
@@ -128,10 +126,16 @@ void bg_entry(char **argv){
 		//parent process.
 		//printf("pid > 0\n");	
 		node* n1 = (node *)malloc(sizeof(node));
+
 		n1->pid = (pid_t)pid;
-		n1->command = argv[0];
 		n1->next=NULL;
 
+		char *temp = (char *)malloc(strlen(argv[0])*sizeof(char));
+
+		//finish this.
+		strcpy(n1->command,temp);
+		printf("%s \n", n1->command);
+		
 		//insert into list
 		if(head==NULL){
 			head=n1;
@@ -165,7 +169,8 @@ void printlist(node *head){
 	node *curr=head;
 	printf("======\n");
 	while(curr!=NULL){
-		printf("%d: %s\n", curr->pid, curr->command);
+		printf("%d  ", curr->pid);
+		//printf("%s \n", curr->command);
 		curr=curr->next;
 		i++;
 	}
