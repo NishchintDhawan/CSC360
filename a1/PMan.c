@@ -29,7 +29,7 @@ typedef struct Node Node;
 typedef struct Node {
 	pid_t pid;
 	char *command;
-    Node* next;
+    Node *next;
 } node;
 
 node* head = NULL;
@@ -39,8 +39,9 @@ void printlist(node* head);
 int main(){
 		char *cmd;
 		char *temp;
-		char *cmd_type ="bg" ;
+		char *cmd_type;
 		char *token;
+		pid_t pid;
 
         while(1){
         		cmd = readline("PMan: > ");
@@ -75,38 +76,85 @@ int main(){
 					strcpy(value,token);
 
 					argv[i] = value;
-					//printf("%s  \n",argv[i]);
 					i++;
 					token = strtok(NULL, " ");
    				}
+				
+
 				argv[i]=NULL;
 				cmd_type=argv[0];
                 if (strcmp(cmd_type, CMD_BG)==0){
+					if(argv[1]==NULL){
+						printf("missing 1 argument with bg\n");
+						continue;
+					}
                       bg_entry(&argv[1]);
-            	// printf("Hello");
                 }
 
                 else if(strcmp(cmd_type, CMD_BGLIST)==0){
-					printlist(head);
+					bglist_entry(head);
                 }
 
-                // else if(cmd_type == CMD_BGKILL || cmd_type == CMD_BGSTOP || cmd_type == CMD_BGCONT){
-                //      bgsig_entry(pid, cmd_type);
+                else if( strcmp(cmd_type,CMD_BGKILL)==0 || strcmp(cmd_type, CMD_BGSTOP)==0 || strcmp(cmd_type, CMD_BGCONT)==0 ){
+                   	if(argv[1]==NULL){
+						printf("missing 1 argument with %s\n", cmd_type);
+						continue;
+					}
 
-                // }
+				 // printf("%s %s", argv[0], argv[1]);
+				//	pid = (inargv[1];
+				   
+				    pid = (pid_t)strtol(argv[1], NULL, 10);
+				//	printf("pid : %d ", pid);
+					bgsig_entry(pid, cmd_type);
+                }
+
                 // else if(cmd_type == CMD_PSTAT){
                 //      pstat_entry(pid);
                 // }
-                // else {
-                //      usage_pman();
-                // }
-       			 //      check_zombieProcess();
+                else {
+                     usage_pman();
+                }
+       			
+			    check_zombieProcess();
 
 				for(int i=0;i<len;i++){
 					free(argv[i]);
 				}			
         }
         return 0;
+}
+
+void removeNode(pid_t pid_remove){
+
+	node *curr = head;
+	node *prev = NULL;
+//	printf("Before if\n");
+//	printf("curr: %p\n", curr);
+
+	if(curr!=NULL && curr->pid==pid_remove){
+		
+		head = curr->next;
+	//	printf("Deleting head node\n");
+		free(curr);
+		return;
+	}
+
+	while(curr!=NULL && curr->pid!=pid_remove){
+
+		prev=curr;
+		curr=curr->next;
+	}
+
+	if(curr==NULL){
+		//printf("Node not found");
+		return;
+	}
+
+//	printf("Deleting the node : %d %s\n", curr->pid, curr->command);
+	prev->next = curr->next;
+	free(curr);
+	return;
 }
 
 void bg_entry(char **argv){
@@ -131,11 +179,9 @@ void bg_entry(char **argv){
 		n1->next=NULL;
 
 		char *temp = (char *)malloc(strlen(argv[0])*sizeof(char));
+		strcpy(temp,argv[0]);
+		n1->command = temp;
 
-		//finish this.
-		strcpy(n1->command,temp);
-		printf("%s \n", n1->command);
-		
 		//insert into list
 		if(head==NULL){
 			head=n1;
@@ -147,60 +193,82 @@ void bg_entry(char **argv){
 			}
 			curr->next=n1;
 		}
-		//printlist(head);
     }
      else {
              perror("fork failed");
              exit(EXIT_FAILURE);
      }
+	 
 }
 
-void bglist_entry(){
 
+
+void bgsig_entry(pid_t pid, char* cmd){
+
+	if(strcmp(cmd,CMD_BGSTOP)==0){
+		kill(pid, SIGSTOP);
+	}
+
+	if(strcmp(cmd,CMD_BGCONT)==0){
+		kill(pid, SIGCONT);
+	}
+
+	if(strcmp(cmd,CMD_BGKILL)==0){
+		kill(pid, SIGTERM);
+		removeNode(pid);
+	}
 }
 
 void usage_pman(){
 	printf("invalid command\n");
 }
+
 //prints the list of processes.
-void printlist(node *head){
+void bglist_entry(node *head){
 
 	int i=0;
 	node *curr=head;
 	printf("======\n");
 	while(curr!=NULL){
 		printf("%d  ", curr->pid);
-		//printf("%s \n", curr->command);
+		printf("%s \n", curr->command);
+		//removeNode(curr->pid);
 		curr=curr->next;
 		i++;
 	}
 	printf("total: %d", i);
 	printf("\n======\n");
+	
 }
 
-// void check_zombieProcess(void){
 
 
-//      //delete zombie process from our data structure.
-//      int status;
-//      int retVal = 0;
+void check_zombieProcess(void){
 
-//      while(1) {
-//              usleep(1000);
-//              if(headPnode == NULL){
-//                      return ;
-//              }
-//              retVal = waitpid(-1, &status, WNOHANG);
-//              if(retVal > 0) {
-//                      //remove the background process from your data structure
-//              }
-//              else if(retVal == 0){
-//                      break;
-//              }
-//              else{
-//                      perror("waitpid failed");
-//                      exit(EXIT_FAILURE);
-//              }
-//      }
-//      return ;
-// }
+
+     //delete zombie process from our data structure.
+     int status;
+     int retVal = 0;
+
+     while(1) {
+             usleep(1000);
+             if(head == NULL){
+				 //    printf("head is null\n");
+                     return ;
+             }
+             retVal = waitpid(-1, &status, WNOHANG);
+		//	 printf("retVal: %d\n", retVal);
+             if(retVal > 0) {
+                     //remove the background process from your data structure
+					 removeNode(retVal);
+             }
+             else if(retVal == 0){
+                     break;
+             }
+             else{
+                     perror("waitpid failed");
+                     exit(EXIT_FAILURE);
+             }
+     }
+     return ;
+}
