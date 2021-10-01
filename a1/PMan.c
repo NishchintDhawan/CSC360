@@ -294,7 +294,7 @@ void statData(char *path){
 		token=strtok(NULL," ");
 	}
 
-	printf("comm:%s \nstate:%s \nutime:%.6f \nstime:%.6f \nrss:%s \n", statData[1], statData[2], (float)(atoi(statData[13])/sysconf(_SC_CLK_TCK)), (float)(atoi(statData[14])/sysconf(_SC_CLK_TCK)), statData[24]);
+	printf("comm: %s \nstate: %s \nutime: %.6f \nstime: %.6f \nrss: %s \n", statData[1], statData[2], (float)(atoi(statData[13])/sysconf(_SC_CLK_TCK)), (float)(atoi(statData[14])/sysconf(_SC_CLK_TCK)), statData[24]);
 	
 }
 
@@ -370,7 +370,7 @@ void check_zombieProcess(void){
                     //remove the background process from your data structure
 					
 					if(WIFEXITED(status)){
-						printf("Process %d terminated\n", retVal);
+						printf("Process %d was terminated\n", retVal);
 					}
 					
 					if(WIFSIGNALED(status)){
