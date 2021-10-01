@@ -24,6 +24,8 @@ void check_zombieProcess(void);
 void bgsig_entry(int, char *);
 void pstat_entry(pid_t);
 void usage_pman();
+int check_pid(pid_t pid);
+
 typedef struct Node Node;
 
 typedef struct Node {
@@ -79,7 +81,6 @@ int main(){
 					i++;
 					token = strtok(NULL, " ");
    				}
-				
 
 				argv[i]=NULL;
 				cmd_type=argv[0];
@@ -102,7 +103,6 @@ int main(){
 					}
 				   
 				    pid = (pid_t)strtol(argv[1], NULL, 10);
-				//	printf("pid : %d ", pid);
 					bgsig_entry(pid, cmd_type);
                 }
 
@@ -169,7 +169,7 @@ void bg_entry(char **argv){
 		//parent process.
 		//printf("pid > 0\n");	
 		node* n1 = (node *)malloc(sizeof(node));
-
+		printf("Running process %d\n", pid);
 		n1->pid = (pid_t)pid;
 		n1->next=NULL;
 
@@ -198,18 +198,35 @@ void bg_entry(char **argv){
 
 void bgsig_entry(pid_t pid, char* cmd){
 
+	if(check_pid(pid)==1){
+		printf("Process %d does not exist\n", pid);
+		return;
+	}
+
 	if(strcmp(cmd,CMD_BGSTOP)==0){
-		kill(pid, SIGSTOP);
+		if(kill(pid, SIGSTOP)==1){
+			printf("Error stopping process: %d\n", pid);
+			return;
+		}
+		printf("Stopped process: %d\n\n", pid);
 	}
 
 	if(strcmp(cmd,CMD_BGCONT)==0){
-		kill(pid, SIGCONT);
+		if(kill(pid, SIGCONT)==1){
+			printf("Error continuing process %d\n", pid);
+			return;
+		}
+		printf("Resumed process: %d\n", pid);
+
 	}
 
 	if(strcmp(cmd,CMD_BGKILL)==0){
-		kill(pid, SIGTERM);
-		removeNode(pid);
+		if(kill(pid, SIGTERM)==1){
+			printf("Error killing process: %d\n", pid);
+			return;
+		}
 	}
+
 }
 
 void usage_pman(){
@@ -221,17 +238,28 @@ void bglist_entry(node *head){
 
 	int i=0;
 	node *curr=head;
-	printf("======\n");
+
 	while(curr!=NULL){
 		printf("%d  ", curr->pid);
 		printf("%s \n", curr->command);
-		//removeNode(curr->pid);
 		curr=curr->next;
 		i++;
 	}
-	printf("total: %d", i);
-	printf("\n======\n");
+	printf("Total background jobs: %d\n", i);
 	
+}
+
+int check_pid(pid_t pid){
+
+	node *curr = head;
+
+	while(curr!=NULL){
+		if(curr->pid==pid){
+			return 0;
+		}
+		curr=curr->next;
+	}
+	return 1;
 }
 
 void statData(char *path){
@@ -244,11 +272,16 @@ void statData(char *path){
 	char str[512] ; 
 	int len =0;
 
+
 	if(fp!=NULL){
 		while(fgets(str, 512, fp) != NULL){
 				data[i] = str;
 				i++;
 		}
+	}
+	else{
+		printf("no stat file found for this pid\n");
+		return;
 	}
 
 	char *token;
@@ -261,7 +294,7 @@ void statData(char *path){
 		token=strtok(NULL," ");
 	}
 
-	printf("comm:%s \nstate:%s \nutime:%lu \nstime:%lu \nrss:%s \n", statData[1], statData[2], atoi(statData[13])/sysconf(_SC_CLK_TCK), atoi(statData[14])/sysconf(_SC_CLK_TCK), statData[24]);
+	printf("comm:%s \nstate:%s \nutime:%.6f \nstime:%.6f \nrss:%s \n", statData[1], statData[2], (float)(atoi(statData[13])/sysconf(_SC_CLK_TCK)), (float)(atoi(statData[14])/sysconf(_SC_CLK_TCK)), statData[24]);
 	
 }
 
@@ -276,11 +309,6 @@ void statusData(char *path){
 	char *parameter;
 
 	int i=0;
-
-	if(fp==NULL){
-		printf("no status file found for this pid");
-		return;
-	}
 
 	if(fp!=NULL){
 		while(fgets(str, 4096, fp) != NULL){
@@ -301,10 +329,20 @@ void statusData(char *path){
 				i++;
 		}
 	}
+	else{
+		printf("no status file found for this pid\n");
+		return;
+	}
 
 }
 
 void pstat_entry(pid_t pid){
+
+	//check if pid is valid.
+	if(check_pid(pid)==1){
+		printf("Error: Process %d does not exist\n", pid);
+		return;	
+	}
 
 	//create path to stat file.
 	char *path1 = malloc(200+sizeof(pid));
@@ -319,22 +357,29 @@ void pstat_entry(pid_t pid){
 
 void check_zombieProcess(void){
 
-     //delete zombie process from our data structure.
      int status;
      int retVal = 0;
 
      while(1) {
-             usleep(1000);
+             usleep(1500);
              if(head == NULL){
-				 //    printf("head is null\n");
                      return ;
              }
              retVal = waitpid(-1, &status, WNOHANG);
-		//	 printf("retVal: %d\n", retVal);
              if(retVal > 0) {
-                     //remove the background process from your data structure
-					 removeNode(retVal);
+                    //remove the background process from your data structure
+					
+					if(WIFEXITED(status)){
+						printf("Process %d terminated\n", retVal);
+					}
+					
+					if(WIFSIGNALED(status)){
+						printf("Process %d was killed\n", retVal);
+					}
+
+					removeNode(retVal);
              }
+
              else if(retVal == 0){
                      break;
              }
@@ -345,3 +390,27 @@ void check_zombieProcess(void){
      }
      return ;
 }
+
+
+/*
+Running process with pid: <pid> DDNE
+
+run process with '..'
+
+Contents for : 
+README ?
+MAKE FILE ?
+
+
+-9 -> send SIGTERM signal.
+
+print when process killed/stopped/resumed/created. DONE
+
+
+utime and stime should be in float and in seconds 6 floating points.
+
+check if pid exists in the bg list DONE
+
+
+
+*/
