@@ -1,4 +1,11 @@
-// Nishchint Dhawan
+/*
+Name: Nishchint Dhawan
+ID: V00882939
+Course: CSC360 
+Assignment: P1
+*/
+
+/* Imports */
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -18,14 +25,20 @@
 
 #define MAX_COUNT  800
 
+/* Create function prototypes. */
 void bg_entry(char **argv);
 void bglist_entry();
 void check_zombieProcess(void);
 void bgsig_entry(int, char *);
 void pstat_entry(pid_t);
-void usage_pman();
+void usage_pman(char *cmd_type);
 int check_pid(pid_t pid);
+void removeNode(pid_t pid_remove);
+void statData(char *path);
+void statusData(char *path);
 
+
+/* Create list using nodes. */
 typedef struct Node Node;
 
 typedef struct Node {
@@ -34,9 +47,8 @@ typedef struct Node {
     Node *next;
 } node;
 
-node* head = NULL;
-
-void printlist(node* head);
+/* List head pointer. */
+node* head = NULL;		
 
 int main(){
 		char *cmd;
@@ -52,7 +64,7 @@ int main(){
 					continue;
 				}
 
-				//count spaces and create argv array.
+				/* Count spaces and create argv array. */
 				temp = (char *)malloc(strlen(cmd)*sizeof(char));
 				strcpy(temp,cmd);
 				int len=0;
@@ -65,7 +77,7 @@ int main(){
 
 				free(temp);
 				char *argv[len];
-				/* parse the input cmd (e.g., with strtok)*/
+				/* parse the input cmd (e.g., with strtok) */
 
 				/* get the first token */
 				token = strtok(cmd, " ");
@@ -89,7 +101,7 @@ int main(){
 				/* Check if command entered is 'bg' */
                 if (strcmp(cmd_type, CMD_BG)==0){
 					if(argv[1]==NULL){
-						printf("missing 1 argument with bg\n");
+						printf("missing 1 argument with bg\n\n");
 						continue;
 					}
                       bg_entry(&argv[1]);
@@ -103,7 +115,7 @@ int main(){
 				/* Check if command entered is 'bgkill' or 'bgstop' or 'bgstart' */
                 else if( strcmp(cmd_type,CMD_BGKILL)==0 || strcmp(cmd_type, CMD_BGSTOP)==0 || strcmp(cmd_type, CMD_BGCONT)==0 ){
                    	if(argv[1]==NULL){
-						printf("missing 1 argument with %s\n", cmd_type);
+						printf("missing 1 argument with %s\n\n", cmd_type);
 						continue;
 					}
 				   
@@ -113,13 +125,18 @@ int main(){
 
 				/* Check if command entered is 'pstat' */
                 else if(strcmp(cmd_type, CMD_PSTAT)==0){
+					if(argv[1]==NULL){
+						printf("missing 1 argument with %s\n\n", cmd_type);
+						continue;
+					}
+
 					 pid = (pid_t)strtol(argv[1], NULL, 10);
                      pstat_entry(pid);
                 }
 
 				/* Otherwise command is not valid. */
                 else {
-                     usage_pman();
+                     usage_pman(cmd_type);
                 }
        			
 			    check_zombieProcess();			/* Check for zombie processes in background. */
@@ -181,7 +198,7 @@ void bg_entry(char **argv){
 
 		/* Create new node for the list.*/
 		node* n1 = (node *)malloc(sizeof(node));
-		printf("Running process %d\n", pid);
+		printf("Running process %d\n\n", pid);
 		n1->pid = (pid_t)pid;
 		n1->next=NULL;
 
@@ -214,14 +231,14 @@ void bgsig_entry(pid_t pid, char* cmd){
 
 	/* Check if pid is valid or not. */
 	if(check_pid(pid)==1){
-		printf("Process %d does not exist\n", pid);
+		printf("Process %d does not exist\n\n", pid);
 		return;
 	}
 
 	/* Stop a process. */
 	if(strcmp(cmd,CMD_BGSTOP)==0){
 		if(kill(pid, SIGSTOP)==1){
-			printf("Error stopping process: %d\n", pid);
+			printf("Error stopping process: %d\n\n", pid);
 			return;
 		}
 		printf("Stopped process: %d\n\n", pid);
@@ -230,17 +247,17 @@ void bgsig_entry(pid_t pid, char* cmd){
 	/* Continue a process. */
 	if(strcmp(cmd,CMD_BGCONT)==0){
 		if(kill(pid, SIGCONT)==1){
-			printf("Error continuing process %d\n", pid);
+			printf("Error continuing process %d\n\n", pid);
 			return;
 		}
-		printf("Resumed process: %d\n", pid);
+		printf("Resumed process: %d\n\n", pid);
 
 	}
 
 	/* Kill a process. */
 	if(strcmp(cmd,CMD_BGKILL)==0){
 		if(kill(pid, SIGTERM)==1){
-			printf("Error killing process: %d\n", pid);
+			printf("Error killing process: %d\n\n", pid);
 			return;
 		}
 	}
@@ -248,8 +265,8 @@ void bgsig_entry(pid_t pid, char* cmd){
 }
 
 /* Runs if the command entered is not valid. */
-void usage_pman(){
-	printf("invalid command\n");
+void usage_pman(char *cmd_type){
+	printf("%s : command not found\n\n", cmd_type);
 }
 
 /* Prints the list of processes. */
@@ -260,12 +277,12 @@ void bglist_entry(node *head){
 
 	/* Walk through list and print. */
 	while(curr!=NULL){
-		printf("%d  ", curr->pid);
+		printf("\n%d: ", curr->pid);
 		printf("%s \n", curr->command);
 		curr=curr->next;
 		i++;
 	}
-	printf("Total background jobs: %d\n", i);
+	printf("Total background jobs: %d\n\n", i);
 	
 }
 
@@ -291,27 +308,27 @@ void statData(char *path){
 	char *data[512];
 	FILE *fp = fopen(path, "r");
 	int i = 0;
-	char str[512] ; 
-	int len =0;
+	char str[1024] ; 
 
-
+	/* Read the stat file and store the data. */
 	if(fp!=NULL){
-		while(fgets(str, 512, fp) != NULL){
+		while(fgets(str, 1024, fp) != NULL){
 				data[i] = str;
 				i++;
 		}
 	}
 	else{
-		printf("no stat file found for this pid\n");
+		printf("no stat file found for this pid\n\n");   /* If the file is not found. */
 		return;
 	}
 
+	/* Extract the data and display nicely. */
 	char *token;
-	len = i;
 	i=0;
+
 	token=strtok(data[0], " ");
 	while(token !=NULL){
-		statData[i] = token;
+		statData[i] = token;		/* Store each value in the statData array. */
 		i++;
 		token=strtok(NULL," ");
 	}
@@ -322,16 +339,14 @@ void statData(char *path){
 
 /* Print the contents of the status file. */
 void statusData(char *path){
-	
-	char *statusData[MAX_COUNT]; 			//store status file data.
 
+	//open the file and read data.
 	FILE *fp = fopen(path, "r");
 	char str[MAX_COUNT];
 
-	char *parameter;
-
 	int i=0;
 
+	/* Read the status file and print data. */
 	if(fp!=NULL){
 		while(fgets(str, 4096, fp) != NULL){
 
@@ -352,31 +367,36 @@ void statusData(char *path){
 		}
 	}
 	else{
-		printf("no status file found for this pid\n");
+		printf("no status file found for this pid\n\n");		/* If the file is not found. */
 		return;
 	}
 
 }
 
+/* Prints information for the process. */
 void pstat_entry(pid_t pid){
 
 	//check if pid is valid.
 	if(check_pid(pid)==1){
-		printf("Error: Process %d does not exist\n", pid);
+		printf("Error: Process %d does not exist\n\n", pid);
 		return;	
 	}
 
-	//create path to stat file.
+	/* Create path to stat file. */
 	char *path1 = malloc(200+sizeof(pid));
 	sprintf(path1, "/proc/%d/stat", pid);
+
+	/* Create path to status file. */
 	char *path2 = malloc(200+sizeof(pid));
 	sprintf(path2, "/proc/%d/status", pid);
 
+	/* Print data for stat and status. */
 	statData(path1);
 	statusData(path2);
 
 }
 
+/* Checks for any zombie processes (terminated or killed) and removes them from our list. */
 void check_zombieProcess(void){
 
      int status;
@@ -384,44 +404,36 @@ void check_zombieProcess(void){
 
      while(1) {
              usleep(1500);
-             if(head == NULL){
+			 
+             if(head == NULL){	/* if our list is empty, we return. */
                      return ;
              }
+
              retVal = waitpid(-1, &status, WNOHANG);
              if(retVal > 0) {
                     //remove the background process from your data structure
 					
-					if(WIFEXITED(status)){
-						printf("Process %d was terminated\n", retVal);
+					/* Check if the process was terminated normally. */
+					if(WIFEXITED(status)){		
+						printf("Process %d was terminated\n\n", retVal);
 					}
 					
+					/* Check if the process wsa killed. */
 					if(WIFSIGNALED(status)){
-						printf("Process %d was killed\n", retVal);
+						printf("Process %d was killed\n\n", retVal);
 					}
-
+					
+					/* Remove the process from our list. */
 					removeNode(retVal);
              }
 
-             else if(retVal == 0){
-                     break;
-             }
-             else{
-                     perror("waitpid failed");
-                     exit(EXIT_FAILURE);
-             }
-     }
-     return ;
+            else if(retVal == 0){		/* If no zombie process is detected, we return. */
+                    break;
+            }
+            else{
+                    perror("waitpid failed");
+                    exit(EXIT_FAILURE);
+            }
+    }
+    return ;
 }
-
-
-/*
-
-
-Contents for : 
-README ?
-MAKE FILE ?
-
-
-
-
-*/

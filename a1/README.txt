@@ -15,5 +15,6 @@ Supported commands of PMan:
 6. pstat <pid>: list comm, state, utime, stime, rss, voluntary_ctxt_switches and nonvoluntary_ctxt_switches of process <pid>
 
 Important notes for bg:
+
 If you want to run inf.c using bg, compile inf.c using "gcc inf.c -o inf" before you execute "./PMan".
 Compile and run PMan and input "bg ./inf a 1" where "a" and 1 are the parameters required by inf.c. Note that you should use ./inf if inf is not in PATH.
