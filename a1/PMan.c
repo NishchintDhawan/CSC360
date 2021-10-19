@@ -109,6 +109,10 @@ int main(){
 
 				/* Check if command entered is 'bglist' */
                 else if(strcmp(cmd_type, CMD_BGLIST)==0){
+					if(argv[1]!=NULL){
+						printf("too many arguments for bglist. Needs 0 arguments.\n\n");
+						continue;
+					}
 					bglist_entry(head);
                 }
 
