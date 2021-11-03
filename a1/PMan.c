@@ -58,18 +58,21 @@ int main(){
 		pid_t pid;
 
         while(1){
-        		cmd = readline("PMan: > ");		//take user input.
-				
-				if(strcmp(cmd,"")==0){			//return nothing if no input is entered.
+				/* take user input */
+        		cmd = readline("PMan: > ");		
+
+				/* return nothing if no input is entered */				
+				if(strcmp(cmd,"")==0){
 					continue;
 				}
 
-				/* Count spaces and create argv array. */
+				/* Count spaces and create argv array */
 				temp = (char *)malloc(strlen(cmd)*sizeof(char));
 				strcpy(temp,cmd);
 				int len=0;
 				
-				token=strtok(temp, " ");			//count size of input and store in 'len'.
+				/* count size of input */
+				token=strtok(temp, " ");
 				while(token !=NULL){
 					len++;
 					token=strtok(NULL," ");
@@ -88,15 +91,15 @@ int main(){
 				while( token != NULL ) {					
 					value = (char *)malloc(strlen(token)*sizeof(char));
 					strcpy(value,token);
-
-					argv[i] = value;				/*store the tokens in argv array.*/
+					/*store the tokens in argv array.*/
+					argv[i] = value;
 					i++;
 					token = strtok(NULL, " ");
    				}
-
-				argv[i]=NULL;						/*last token should be NULL.*/
-
-				cmd_type=argv[0];					/* get type of command.*/
+				/*last token should be NULL.*/
+				argv[i]=NULL;						
+				/* get type of command.*/
+				cmd_type=argv[0];					
 
 				/* Check if command entered is 'bg' */
                 if (strcmp(cmd_type, CMD_BG)==0){
@@ -121,8 +124,7 @@ int main(){
                    	if(argv[1]==NULL){
 						printf("missing 1 argument with %s\n\n", cmd_type);
 						continue;
-					}
-				   
+					}				   
 				    pid = (pid_t)strtol(argv[1], NULL, 10);
 					bgsig_entry(pid, cmd_type);
                 }
@@ -133,7 +135,6 @@ int main(){
 						printf("missing 1 argument with %s\n\n", cmd_type);
 						continue;
 					}
-
 					 pid = (pid_t)strtol(argv[1], NULL, 10);
                      pstat_entry(pid);
                 }
@@ -142,8 +143,9 @@ int main(){
                 else {
                      usage_pman(cmd_type);
                 }
-       			
-			    check_zombieProcess();			/* Check for zombie processes in background. */
+
+       			/* Check for zombie processes in background. */
+			    check_zombieProcess();
 
 				/* Free up space taken by the argv in memory for the new command. This prevents stack overflow.*/
 				for(int i=0;i<len;i++){
@@ -159,38 +161,38 @@ void removeNode(pid_t pid_remove){
 	node *curr = head;
 	node *prev = NULL;
 
-	/* If we want to remove the first element. */
+	/* If we want to remove the first element */
 	if(curr!=NULL && curr->pid==pid_remove){		
 		head = curr->next;
 		free(curr);
 		return;
 	}
 
-	/* Walk through the list to find the node to be removed. */
+	/* Walk through the list to find the node to be removed */
 	while(curr!=NULL && curr->pid!=pid_remove){		
 		prev=curr;
 		curr=curr->next;
 	}
 
-	/* Return if node is not found in the list. */
+	/* Return if node is not found in the list */
 	if(curr==NULL){									
 		return;
 	}
 
-	/* Remove the node and free up memory space. */
+	/* Remove the node and free up memory space */
 	prev->next = curr->next;						
 	free(curr);
 	return;
 }
 
-/* Add new process to the list.*/
+/* Add new process to the list */
 void bg_entry(char **argv){
 	
     pid_t pid;
     pid = fork();
     if(pid == 0){
-		//child process.
-		/* execute the command using execvp. */
+		/* child process */
+		/* execute the command using execvp */
 		if(execvp(argv[0], argv) < 0){			
 				perror("Error on execvp");
 		}
@@ -198,7 +200,7 @@ void bg_entry(char **argv){
 	}
 
 	else if(pid > 0) {
-		//parent process.
+		/* parent process */
 
 		/* Create new node for the list.*/
 		node* n1 = (node *)malloc(sizeof(node));
@@ -211,16 +213,18 @@ void bg_entry(char **argv){
 		strcpy(temp,argv[0]);
 		n1->command = temp;
 
-		/* insert into list. */
+		/* insert into list */
 		if(head==NULL){
 			head=n1;
 		}
 		else{
 			node *curr = head; 
-			while(curr->next!=NULL){	/* Move to the end of the list. */
+			/* Move to the end of the list */
+			while(curr->next!=NULL){
 				curr=curr->next;
 			}
-			curr->next=n1;				/* insert node. */
+			/* insert node */
+			curr->next=n1;
 		}
     }
      else {
@@ -230,16 +234,16 @@ void bg_entry(char **argv){
 	 
 }
 
-/* Kill, Stop or Start a process.  */
+/* Kill, Stop or Start a process */
 void bgsig_entry(pid_t pid, char* cmd){
 
-	/* Check if pid is valid or not. */
+	/* Check if pid is valid or not */
 	if(check_pid(pid)==1){
 		printf("Process %d does not exist\n\n", pid);
 		return;
 	}
 
-	/* Stop a process. */
+	/* Stop a process */
 	if(strcmp(cmd,CMD_BGSTOP)==0){
 		if(kill(pid, SIGSTOP)==1){
 			printf("Error stopping process: %d\n\n", pid);
@@ -248,7 +252,7 @@ void bgsig_entry(pid_t pid, char* cmd){
 		printf("Stopped process: %d\n\n", pid);
 	}
 	
-	/* Continue a process. */
+	/* Continue a process */
 	if(strcmp(cmd,CMD_BGCONT)==0){
 		if(kill(pid, SIGCONT)==1){
 			printf("Error continuing process %d\n\n", pid);
@@ -258,7 +262,7 @@ void bgsig_entry(pid_t pid, char* cmd){
 
 	}
 
-	/* Kill a process. */
+	/* Kill a process */
 	if(strcmp(cmd,CMD_BGKILL)==0){
 		if(kill(pid, SIGTERM)==1){
 			printf("Error killing process: %d\n\n", pid);
@@ -268,18 +272,19 @@ void bgsig_entry(pid_t pid, char* cmd){
 
 }
 
-/* Runs if the command entered is not valid. */
+/* Runs if the command entered is not valid */
 void usage_pman(char *cmd_type){
+	
 	printf("%s : command not found\n\n", cmd_type);
 }
 
-/* Prints the list of processes. */
+/* Prints the list of processes */
 void bglist_entry(node *head){
 
 	int i=0;
 	node *curr=head;
 
-	/* Walk through list and print. */
+	/* Walk through list and print */
 	while(curr!=NULL){
 		printf("\n%d: ", curr->pid);
 		printf("%s \n", curr->command);
@@ -290,7 +295,7 @@ void bglist_entry(node *head){
 	
 }
 
-/* Check if a given pid is valid or not (exists in the list). */
+/* Check if a given pid is valid or not (exists in the list) */
 int check_pid(pid_t pid){
 
 	node *curr = head;
@@ -304,17 +309,17 @@ int check_pid(pid_t pid){
 	return 1;
 }
 
-/* Print the contents of the stat file. */
+/* Print the contents of the stat file */
 void statData(char *path){
 
-	//open stat file and read input.
-	char *statData[MAX_COUNT]; 			//store stat file data.
+	/*store stat file data.*/
+	char *statData[MAX_COUNT];
 	char *data[512];
 	FILE *fp = fopen(path, "r");
 	int i = 0;
 	char str[1024] ; 
 
-	/* Read the stat file and store the data. */
+	/* Read the stat file and store the data */
 	if(fp!=NULL){
 		while(fgets(str, 1024, fp) != NULL){
 				data[i] = str;
@@ -322,38 +327,37 @@ void statData(char *path){
 		}
 	}
 	else{
-		printf("no stat file found for this pid\n\n");   /* If the file is not found. */
+		/* If the file is not found */
+		printf("no stat file found for this pid\n\n");
 		return;
 	}
 
-	/* Extract the data and display nicely. */
+	/* Extract the data and display nicely */
 	char *token;
 	i=0;
-
 	token=strtok(data[0], " ");
+	
+	/* Store each value in the statData array */
 	while(token !=NULL){
-		statData[i] = token;		/* Store each value in the statData array. */
+		statData[i] = token;
 		i++;
 		token=strtok(NULL," ");
 	}
-
 	printf("\ncomm:\t\t%s \nstate:\t\t%s \nutime:\t\t%.6f \nstime:\t\t%.6f \nrss:\t\t%s \n", statData[1], statData[2], (float)(atoi(statData[13])/sysconf(_SC_CLK_TCK)), (float)(atoi(statData[14])/sysconf(_SC_CLK_TCK)), statData[24]);
 	
 }
 
-/* Print the contents of the status file. */
+/* Print the contents of the status file */
 void statusData(char *path){
 
-	//open the file and read data.
+	/* open the file and read data */
 	FILE *fp = fopen(path, "r");
 	char str[MAX_COUNT];
-
 	int i=0;
 
-	/* Read the status file and print data. */
+	/* Read the status file and print data */
 	if(fp!=NULL){
 		while(fgets(str, 4096, fp) != NULL){
-
 				char line[MAX_COUNT];
 				strcpy(line,str);
 				char *token;
@@ -371,30 +375,31 @@ void statusData(char *path){
 		}
 	}
 	else{
-		printf("no status file found for this pid\n\n");		/* If the file is not found. */
+		/* If the file is not found */
+		printf("no status file found for this pid\n\n");
 		return;
 	}
 
 }
 
-/* Prints information for the process. */
+/* Prints information for the process */
 void pstat_entry(pid_t pid){
 
-	//check if pid is valid.
+	/* check if pid is valid */
 	if(check_pid(pid)==1){
 		printf("Error: Process %d does not exist\n\n", pid);
 		return;	
 	}
 
-	/* Create path to stat file. */
+	/* Create path to stat file */
 	char *path1 = malloc(200+sizeof(pid));
 	sprintf(path1, "/proc/%d/stat", pid);
 
-	/* Create path to status file. */
+	/* Create path to status file */
 	char *path2 = malloc(200+sizeof(pid));
 	sprintf(path2, "/proc/%d/status", pid);
 
-	/* Print data for stat and status. */
+	/* Print data for stat and status */
 	statData(path1);
 	statusData(path2);
 
@@ -407,31 +412,31 @@ void check_zombieProcess(void){
      int retVal = 0;
 
      while(1) {
-             usleep(1500);
-			 
-             if(head == NULL){	/* if our list is empty, we return. */
-                     return ;
-             }
+            usleep(1500);
+			/* if our list is empty, we return */
+            if(head == NULL){
+                    return ;
+            }
 
-             retVal = waitpid(-1, &status, WNOHANG);
-             if(retVal > 0) {
-                    //remove the background process from your data structure
-					
-					/* Check if the process was terminated normally. */
-					if(WIFEXITED(status)){		
-						printf("Process %d was terminated\n\n", retVal);
-					}
-					
-					/* Check if the process wsa killed. */
-					if(WIFSIGNALED(status)){
-						printf("Process %d was killed\n\n", retVal);
-					}
-					
-					/* Remove the process from our list. */
-					removeNode(retVal);
-             }
+            retVal = waitpid(-1, &status, WNOHANG);
+            if(retVal > 0) {
+                /* remove the background process from list */
+				/* Check if the process was terminated normally. */
+				if(WIFEXITED(status)){		
+					printf("Process %d was terminated\n\n", retVal);
+				}
+				
+				/* Check if the process wsa killed. */
+				if(WIFSIGNALED(status)){
+					printf("Process %d was killed\n\n", retVal);
+				}
+				
+				/* Remove the process from our list. */
+				removeNode(retVal);
+			}
 
-            else if(retVal == 0){		/* If no zombie process is detected, we return. */
+			/* If no zombie process is detected, we return. */
+            else if(retVal == 0){
                     break;
             }
             else{
