@@ -1,5 +1,4 @@
 /**
-
  The time calculation could be confusing, check the exmaple of gettimeofday on tutorial for more detail.
  */
 #include <stdio.h>
@@ -163,8 +162,6 @@ pthread_mutex_t overAll_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 int checkHead(customer *p_myInfo, int curr_queue);
 
-//void get_current_customer(int curr_clerk);
-
 /* global variables */
 //create clerk id's. 
 // set clerk id's and store the corresponding customer id.
@@ -325,7 +322,6 @@ void * Customer_entry(void * cus_info){
 			//if i am the head of the queue and the flag for that queue is raised (queue is signaled by the clerk).
 			if(checkHead(p_myInfo, curr_queue) && !winner_selected[curr_queue]){	
 				//dequeue.
-				printf("awoken Customer ID: %d\n",p_myInfo->id);
 				dequeue(businessQueue); 
 				float businessQueue_time_end = get_simulation_time();
 				pthread_mutex_lock(&businessQTime_mutex);
@@ -386,7 +382,6 @@ void * Customer_entry(void * cus_info){
 			//if i am the head of the queue and the flag for that queue is raised (queue is signaled by the clerk).
 			if(checkHead(p_myInfo, curr_queue) && !winner_selected[curr_queue]){	
 				//dequeue.
-				printf("awoken Customer ID: %d\n",p_myInfo->id);
 				dequeue(economyQueue); 
 				float economyQueue_time_end = get_simulation_time();
 				pthread_mutex_lock(&economyQTime_mutex);
@@ -474,22 +469,10 @@ void *clerk_entry(void * currClerk){
 
 		/* selected_queue_ID = Select the queue based on the priority and current Customers number */
 		int selected_queue_ID ;
-		// while(1){
-		// 	if(businessQueue->size!=0){
-		// 		selected_queue_ID = 1;
-		// 		break;
-		// 	}
-		// 	else {
-		// 		selected_queue_ID = 0;
-		// 		break;
-		// 	}
-		// }
-
-		printf("business size:%d econony size: %d clerkID: %d\n",businessQueue->size,economyQueue->size, clerk_ID);
 		
+		// serve business queue first.
 		if(businessQueue->size!=0){
 			
-			printf("business queue selected\n");
 			selected_queue_ID = 1;
 			
 			pthread_mutex_lock(&businessQueue_mutex);	/* mutexLock of the selected queue */
@@ -499,7 +482,6 @@ void *clerk_entry(void * currClerk){
 			winner_selected[selected_queue_ID] = 0; // set the initial value as the Customer has not selected from the queue.
 			
 			pthread_cond_broadcast(&businessQueue_convar); // Awake the Customer (the one enter into the queue first) from the selected queue
-			
 			
 			pthread_mutex_unlock(&businessQueue_mutex); /* mutexLock of the selected queue */
 			
@@ -531,6 +513,7 @@ void *clerk_entry(void * currClerk){
 			}
 		}
 
+		// serve economy queue.
 		else if(economyQueue->size!=0){
 			
 			selected_queue_ID = 0;
@@ -595,7 +578,7 @@ int main(int args, char *argv[]) {
 	*/
 
 	if(argv[1]==NULL){
-		printf("Please pass the input file as argument\n");
+		printf("Please pass an input file as argument\n");
 		return 0;
 	}
 
@@ -608,9 +591,6 @@ int main(int args, char *argv[]) {
 	// initialise the queues.
 	economyQueue = createQueue();
 	businessQueue = createQueue();
-	// for(int j=0;j<NQUEUE;j++){	//initialize with no customers
-	// 	winner_selected[j] = 0;
-	// }
 	while(fgets(line, sizeof(line), fp)){
 		if(numflag==0){
 			numCustomers = strtol(line, NULL, 10);
@@ -627,7 +607,6 @@ int main(int args, char *argv[]) {
 		}
 	}
 
-//	printList();
 	fclose(fp);
 	
 	int f;
@@ -636,7 +615,7 @@ int main(int args, char *argv[]) {
         clerkArray[f-1] = c;
     }
 
-	// //create clerk thread 
+	// create clerk threads 
 	for(int i = 0; i < 5; i++){ // number of clerks
 		//clerk_info: passing the clerk information (e.g., clerk ID) to clerk thread
 		 if(pthread_create(&clerkThreads[i], NULL, clerk_entry, (void *)&clerkArray[i])) {
@@ -655,7 +634,6 @@ int main(int args, char *argv[]) {
 	}
 
 	// wait for all Customer threads to terminate
-	// forEach Customer thread{
 	int j;
     for(j = 0; j < numCustomers; j++) {
         if(pthread_join(customer_threads[j], NULL)){
@@ -667,11 +645,11 @@ int main(int args, char *argv[]) {
 	// destroy mutex & condition variable (optional)
 	
 	// calculate the average waiting time of all Customers
-	
 	printf("\nTotal Business Customers: %d\n", numBusinessCustomers);
 	printf("Total Economy Customers: %d\n", numEconomyCustomers);
 	printf("Average wait time for Business Queue: %f\n", businessQueue_time/(numBusinessCustomers*10));
 	printf("Average wait time for Economy Queue: %f\n", economyQueue_time/(numEconomyCustomers*10));
+	printf("Average wait time Overall: %f\n", (businessQueue_time + economyQueue_time)/((numBusinessCustomers + numEconomyCustomers)*10));
 
 	return 0;
 }
