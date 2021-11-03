@@ -9,12 +9,11 @@
 #include <sys/types.h>
 #include <sys/time.h>
 #include <unistd.h>
-/* 0-FALSE, 1-TRUE */
 
 #define MAX_SIZE 1024
 #define NQUEUE 2
 
-typedef struct Customer  { /// use this struct to record the Customer information read from Customers.txt
+typedef struct Customer  { // use this struct to record the Customer information read from Customers.txt
     int id;
 	int class_type;
 	float service_time;
@@ -342,7 +341,7 @@ void * Customer_entry(void * cus_info){
 
 		usleep(10);
 		queue_status[curr_queue] = 0 ;
-		printf("Clerk %1d starts serving the customer ID %2d at time: %.2f,  \n", curr_clerk, p_myInfo->id, get_simulation_time());
+		printf("Clerk %1d starts serving customer ID %2d at time: %.2f,  \n", curr_clerk, p_myInfo->id, get_simulation_time());
 
         usleep(p_myInfo->service_time * 100000);
 
@@ -401,12 +400,12 @@ void * Customer_entry(void * cus_info){
 		}
 
 		usleep(10);
-		queue_status[curr_queue] = 0 ;
-		printf("Clerk %1d starts serving a the customer ID %2d time %.2f,  \n", curr_clerk, p_myInfo->id, get_simulation_time() );
+		//queue_status[curr_queue] = 0 ;
+		printf("Clerk %d starts serving customer ID %2d time %.2f,  \n", curr_clerk, p_myInfo->id, get_simulation_time() );
 
         usleep(p_myInfo->service_time * 100000);
 
-		printf("Clerk %1d finishes serving Customer %d at time: %.2f \n", curr_clerk, p_myInfo->id, get_simulation_time());
+		printf("Clerk %d finishes serving Customer %d at time: %.2f \n", curr_clerk, p_myInfo->id, get_simulation_time());
 
 	}
 
@@ -506,7 +505,7 @@ void *clerk_entry(void * currClerk){
 				pthread_cond_wait(&C4_convar, &C4_mutex);
 				pthread_mutex_unlock(&C4_mutex);
 			}
-			else{
+			else if(clerk_ID == 5){
 				pthread_mutex_lock(&C5_mutex);
 				pthread_cond_wait(&C5_convar, &C5_mutex);
 				pthread_mutex_unlock(&C5_mutex);
@@ -550,7 +549,7 @@ void *clerk_entry(void * currClerk){
 				pthread_cond_wait(&C4_convar, &C4_mutex);
 				pthread_mutex_unlock(&C4_mutex);
 			}
-			else{
+			else if(clerk_ID == 5){
 				pthread_mutex_lock(&C5_mutex);
 				pthread_cond_wait(&C5_convar, &C5_mutex);
 				pthread_mutex_unlock(&C5_mutex);
@@ -609,7 +608,7 @@ int main(int args, char *argv[]) {
 
 	fclose(fp);
 	
-	int f;
+	int f = 1;
     for(f = 1; f <= 5; f++){
         clerk c = {f};
         clerkArray[f-1] = c;
