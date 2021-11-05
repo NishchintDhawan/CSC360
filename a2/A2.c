@@ -13,96 +13,98 @@
 #define MAX_SIZE 1024
 #define NQUEUE 2
 
-typedef struct Customer  { // use this struct to record the Customer information read from Customers.txt
+/* Customer struct */
+typedef struct Customer  {
     int id;
 	int class_type;
 	float service_time;
 	float arrival_time;
 } customer;
 
-//use to store the Clerk id
+/* Clerk struct */
 typedef struct Clerk {
     int id;
 } Clerk;
 
-//node for queue
+/* Node struct for Queue */
 typedef struct node {
     customer* customer;
     struct node* next;
 } node;
 
-//Queue type include the head and tail of the queue list.
+/* Queue struct  */
 typedef struct Queue {
     struct node* head;
     struct node* tail;
     int size;
 } Queue;
 
-//create the customer node
+/* Create the customer node */
 node* createNode(customer* currCustomer) {
     node* new = (node*) malloc(sizeof(node));
     if(new == NULL) {
         perror("Error: failed on malloc while creating node\n");
         return NULL;
     }
-    new->customer = currCustomer;	//assign pointer to the currCustomer pointer.
-    new->next = NULL;				// next is null.
+	/* Initialise values for the new customer */
+    new->customer = currCustomer;
+    new->next = NULL;
     return new;
 }
 
-//create a Queue list
+/* Create a Queue list */
 Queue* createQueue() {
     Queue* queue = (Queue*) malloc(sizeof(Queue));
     if(queue == NULL) {
         perror("Error: failed on malloc while creating Queue\n");
         return NULL;
     }
-    queue->head = NULL;		// initial values are NULL.
+	/* Initialise values for the new Queue */
+    queue->head = NULL;
     queue->tail = NULL;
     queue->size = 0;
     return queue;
 }
 
-struct Queue *queue[NQUEUE];
-// business and economy queue. 
 
-/* queue functions */
-void enqueue(Queue *queue, node* Node){
-	
-	if(queue->size == 0) {
+/* Create array for business and economy queues. */
+struct Queue *queue[NQUEUE];	
+
+/* Enqueue and Dequeue functions */
+/* Insert element to the queue end */
+void Queue_Enqueue(Queue *queue, node* Node){	
+	/* if the queue is empty */
+	if(!queue->size) {
 	queue->head = Node;
 	queue->tail = Node;
 	}
+	/* add to the tail of the queue */
 	else {
 		queue->tail->next = Node;
 		queue->tail = Node;
 	}
+	/* increment size by 1 */
 	queue->size++;
 }
 
-void dequeue(Queue *queue){
-	
-	if(queue->size == 0) {
-        perror("Error: dequeue. No elements in queue\n");
+/* Remove element from the queue front */
+void Queue_Dequeue(Queue *queue){
+	/* Check if queue is empty or not */
+	if(!queue->size) {
+        perror("Error: Queue_Dequeue. No elements in queue\n");
 		return;
     }
-	
+	/* if there is only one element in the queue */
 	if(queue->size == 1) {
         queue->head = NULL;
         queue->tail = NULL;
         queue->size--;
     }
+	/* else remove the head of the queue */
 	else {
         queue->head = (queue->head)->next;
+		/* decrement size by 1 */
         queue->size--;
-    }
-}
-
-int peek(Queue* queue, customer* cust) {
-    if(cust == queue->head->customer){
-      return 1;
-    }else{
-      return 0;
     }
 }
 
@@ -248,7 +250,7 @@ void * Customer_entry(void * cus_info){
         }
 
 		/* pick the queue and enter queue. */
-		enqueue(businessQueue, createNode(p_myInfo));
+		Queue_Enqueue(businessQueue, createNode(p_myInfo));
 		queue_length[curr_queue]++ ;
 		/* initialize time for calculating business queue waiting time. */
 		double businessQueue_time_init = get_current_system_time();
@@ -267,8 +269,8 @@ void * Customer_entry(void * cus_info){
 			pthread_cond_wait(&businessQueue_convar, &businessQueue_mutex);
 			/* if i am the head of the queue and this queue is signaled by the Clerk */
 			if(checkHead(p_myInfo, curr_queue) && !winner_selected[curr_queue]){	
-				/* dequeue. */
-				dequeue(businessQueue); 
+				/* Queue_Dequeue. */
+				Queue_Dequeue(businessQueue); 
 				double businessQueue_time_end = get_current_system_time();
 				pthread_mutex_lock(&businessQTime_mutex);
 				businessQueue_time = businessQueue_time + (businessQueue_time_end - businessQueue_time_init);
@@ -282,7 +284,7 @@ void * Customer_entry(void * cus_info){
 			}
 		} 
 		
-		/* if this customer is picked by the Clerk, dequeue and start self serve.*/
+		/* if this customer is picked by the Clerk, Queue_Dequeue and start self serve.*/
 		if(pthread_mutex_unlock(&businessQueue_mutex)) {
             perror("Error: failed on mutex unlock.\n");
 		}
@@ -305,7 +307,7 @@ void * Customer_entry(void * cus_info){
         }
 
 		/* pick the queue and enter */
-		enqueue(economyQueue, createNode(p_myInfo));
+		Queue_Enqueue(economyQueue, createNode(p_myInfo));
 		queue_length[curr_queue]++ ;
 		double economyQueue_time_init = get_current_system_time();
 		/* send signal to clerk that customer is arrived. */
@@ -317,8 +319,8 @@ void * Customer_entry(void * cus_info){
 			pthread_cond_wait(&economyQueue_convar, &economyQueue_mutex);
 			/* if I am the head of the queue and this queue is signaled by the clerk */
 			if(checkHead(p_myInfo, curr_queue) && !winner_selected[curr_queue]){	
-				/* dequeue */
-				dequeue(economyQueue); 
+				/* Queue_Dequeue */
+				Queue_Dequeue(economyQueue); 
 				/* calculate waiting time and customer count */
 				double economyQueue_time_end = get_current_system_time();
 				pthread_mutex_lock(&economyQTime_mutex);
@@ -503,6 +505,7 @@ void createClerkArray(){
 	
     for(int i = 1; i <= 5; i++){
         Clerk clerk = {i};
+		/* Store final values in the clerk array. */
         clerkArray[i-1] = clerk;
     }
 }
