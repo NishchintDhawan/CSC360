@@ -14,7 +14,9 @@ char *fat_table_location;
 FILE *diskfile;
 char *p;
 
-int get_FAT_entry2(int n);
+int get_FAT_entry(char *p, int n);
+
+void print_directory(char *path);
 
 void print_OS_Name(char *osName)
 {
@@ -72,45 +74,13 @@ int countEmptyFATentries(int totalSize)
     //  printf("====== Num of entries in FAT: %d ======\n", (totalSize/SECTOR_SIZE)-31);
     for (int i = 2; i < (totalSize / SECTOR_SIZE) - 31; i++)
     {
-        if (get_FAT_entry2(i) == 0x000)
+        if (get_FAT_entry(p, i) == 0x000)
         {
             count++;
         }
     }
 
     return count * SECTOR_SIZE;
-}
-
-int get_FAT_entry2(int n)
-{
-
-    int result, low4bits, high4bits, _8bits;
-
-    if (n % 2 == 0)
-    {
-        /*  Read even values. 
-        If n is even, then the physical location of the entry is the low four bits in location 1+(3*n)/2 
-        and the 8 bits in location (3*n)/2 */
-
-        low4bits = p[((3 * n) / 2) + 1] & 0x0F; // stored first
-        _8bits = p[((3 * n) / 2)] & 0xFF;       // stored second.
-        result = (low4bits << 8) + _8bits;
-    }
-
-    else
-    {
-        /*  Read odd values. 
-        If n is odd, then the physical location of the entry is the high four bits in location (3*n)/2 and 
-        the 8 bits in location 1+(3*n)/2  */
-
-        high4bits = p[(int)((3 * n) / 2)] & 0xF0;
-        _8bits = p[(int)((3 * n) / 2) + 1] & 0xFF;
-        result = (high4bits >> 4) + (_8bits << 4);
-    }
-
-    if (result != 0)
-        printf("%p \n ", result);
-    return result;
 }
 
 int get_FAT_entry(char *p, int n)
@@ -125,7 +95,6 @@ int get_FAT_entry(char *p, int n)
         and the 8 bits in location (3*n)/2 */
 
         low4bits = p[((3 * n) / 2) + 1] & 0x0F; // stored first
-        low4bits = p[((3 * n) / 2) + 1] & 0x0F; // stored first
         _8bits = p[((3 * n) / 2)] & 0xFF;       // stored second.
         result = (low4bits << 8) + _8bits;
     }
@@ -141,8 +110,6 @@ int get_FAT_entry(char *p, int n)
         result = (high4bits >> 4) + (_8bits << 4);
     }
 
-    if (result != 0)
-        printf("%p \n ", result);
     return result;
 }
 
@@ -167,50 +134,50 @@ void print_freesize()
     printf("Free size of the disk: %d bytes\n\n", countEmptyFATentries(totalDiskSize()));
 }
 
-void parse_sub(int flc)
+void parse_sub(char *fat_location, int flc)
 {
     int addr = 0;
     int total_count = 0;
     char sector_data[512];
     char *temp = p;
-    // printf("first_logical_cluster: %p\n", get_FAT_entry2(p, flc));
-
-    char *fat_location = fat_table_location;
+    // printf("first_logical_cluster: %p\n", get_FAT_entry(p, flc));
+    int path = (31 + (int)flc) * SECTOR_SIZE;
+    temp += path;
+    //printf("\nCurrent location: %p\n", flc);
     int next_loc = flc;
+    //print_directory(temp);
     while (next_loc <= 0xff5)
     {
-        //traverse to the disk sector
-        temp = p;
-        int path = (31 + (int)next_loc) * SECTOR_SIZE;
-        temp += path;
-        printf("\nLocation of sector: %p\n", next_loc);
-        // go through the disk sector
         for (int i = 0; i < 512; i += 32)
         {
-            printf("%s\n", &temp[i]);
-            if (temp[0] == 0x00 || temp[26] == 0x00 || temp[26] == 0x01 || temp[11] == 0x0F || (temp[11] & 0x08) != 0)
+            if (temp[i + 26] == 0x00 || temp[i + 26] == 0x01 || temp[i + 11] == 0x0F || (temp[i + 11] & 0x08) != 0 || temp[i] == '.')
             {
                 continue;
             }
-            if ((temp[11] & 0x10) == 0)
+           
+            printf("%s\n", &temp[i]);
+
+            if ((temp[i + 11] & 0x10) == 0)
             {
-                // printf("\nIs a file: %s\n", temp[i]);
                 total_count++;
                 continue;
             }
+
             else
             {
-                int value = temp[26] + (temp[27] << 8);
-               // parse_sub(next_loc);
-                //  printf("\nIs a sub : %s\n", temp[i]);
+                printf("\n%p\n", get_FAT_entry(fat_location, next_loc));
+                // total_count += parse_sub(fat_location, get_FAT_entry(fat_location, next_loc));
+                parse_sub(fat_location, get_FAT_entry(fat_location, next_loc));
             }
         }
-        next_loc = get_FAT_entry(fat_table_location, next_loc);
-        printf("\nnext sector: %p\n", next_loc);
+        next_loc = get_FAT_entry(fat_location, next_loc);
     }
-
-    //get_FAT_entry2
-    //}
+    // return total_count;
+    // printf("\nnext sector: %p\n", next_loc);
+    // while(next_loc<=0xff5){
+    //     next_loc = get_FAT_entry(fat_table_location, next_loc);
+    //     printf("\nnextsector: %p\n", next_loc);
+    // }
 }
 
 void print_num_of_files()
@@ -218,6 +185,11 @@ void print_num_of_files()
     char *temp = p;
     temp += SECTOR_SIZE * 19; //move to the root directory.
     int count = 0;
+    //print contents of current directory
+    // printf("ROOT/\n=================\n");
+    // print_directory(temp);
+    // printf("\n");
+
     while (temp[0] != 0x00) //directory entry is not free.
     {
         if (temp[26] == 0x00 || temp[26] == 0x01 || temp[11] == 0x0F || (temp[11] & 0x08) != 0)
@@ -225,7 +197,8 @@ void print_num_of_files()
             temp += 32;
             continue;
         }
-        printf("===\n%s\n===", temp);
+
+        //printf("\n%s\n", &temp[0]);
         //check if the entry is a subdirectory, entry is hidden.
         if ((temp[11] & 0x10) == 0)
         {
@@ -233,13 +206,49 @@ void print_num_of_files()
         }
         else
         {
-            //printf("\n%p\n", get_FAT_entry2(fat_table_location,  p[26] + (p[27] << 8) ));
-            parse_sub(temp[26] + (temp[27] << 8));
+            // printf("\n%p\n", temp[26] + (temp[27] << 8));
+            // int x = get_FAT_entry(fat_table_location, temp[26] + (temp[27] << 8));
+            // printf("\n%p\n", x);
+            // x = get_FAT_entry(fat_table_location, x);
+            // printf("\n%p\n", x);
+
+            //  printf("%s",&temp[0]);
+            //  printf("\n=================\n");
+            // count += parse_sub(fat_table_location, temp[26] + (temp[27] << 8));
+            parse_sub(fat_table_location, temp[26] + (temp[27] << 8));
         }
 
         temp += 32;
     }
+   // printf("\nval : %d\n", count);
     //printf("The number of files in the disk (including all files in the root directory and files in all subdirectories): %d\n\n", count);
+}
+
+void print_directory(char *path)
+{
+
+    char *temp = path;
+    //temp += SECTOR_SIZE * 19; //move to the root directory.
+    int count = 0;
+    while (temp[0] != 0x00) //directory entry is not free.
+    {
+        if (temp[26] == 0x00 || temp[26] == 0x01 || temp[11] == 0x0F || (temp[11] & 0x08) != 0 || temp[0] == '.')
+        {
+            temp += 32;
+            continue;
+        }
+        //printf("\n%s\n", &temp[0]);
+        //check if the entry is a subdirectory, entry is hidden.
+        if ((temp[11] & 0x10) == 0)
+        {
+            printf("F: %s\n", &temp[0]);
+        }
+        else
+        {
+            printf("S: %s\n", &temp[0]);
+        }
+        temp += 32;
+    }
 }
 
 int num_fat_copies()
@@ -303,10 +312,11 @@ int main(int argc, char *argv[])
 
     int reserved_sectors = (p[11] + (p[12] << 8)) * (p[14] + (p[15] << 8));
     // printf(" Bytes per sector : %d , Boot sectors:  %d\n", (p[11]+(p[12]<<8)), (p[14]+(p[15]<<8)) );
-    fat_table_location = p + SECTOR_SIZE; // + reserved_sectors;
+    fat_table_location = p;
+    fat_table_location += SECTOR_SIZE; // + reserved_sectors;
 
     //get OS name
-    // print_OS_Name(osName);
+    //print_OS_Name(osName);
 
     // //get label of disk
     // print_diskLabel(diskLabel);
