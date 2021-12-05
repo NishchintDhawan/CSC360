@@ -80,7 +80,6 @@ void print_filename(unsigned char *temp)
     {
         strcat(fullname,".");
         strcat(fullname,extension);
-        //printf(".%s", extension);
     }
     printf("%20s", fullname);
 }
@@ -101,11 +100,9 @@ void print_subdir_name(unsigned char *temp)
     printf("%20s", subdir_name);
 }
 
-void parse_sub(unsigned char *fat_location, int flc, char dir_path[4096])
+void parse_sub(unsigned char *fat_location, int flc, char* dir_path)
 {
-    int addr = 0;
     int total_count = 0;
-    unsigned char sector_data[512];
     unsigned char *temp = p;
 
     int next_loc = flc;
@@ -146,7 +143,7 @@ void parse_sub(unsigned char *fat_location, int flc, char dir_path[4096])
 
             else
             {
-                unsigned char temp2[20];
+                char *temp2 = malloc(sizeof(char));
                 int j = 0;
                 for (j = 0; j < 11; j++)
                 {
@@ -180,7 +177,7 @@ void print_entire_image()
     temp += SECTOR_SIZE * 19; //move to the root directory.
     int count = 0;
     //print contents of current directory
-    unsigned char dir_path[4096];
+    char *dir_path = malloc(sizeof(char));
     printf("Root\n=================\n");
 
     unsigned char *print_root = temp;
@@ -271,7 +268,6 @@ void print_directory(unsigned char *path)
 {
 
     unsigned char *temp = path;
-    int count = 0;
 
     while (temp[0] != 0x00 && (temp - path) < 512) //directory entry is not free.
     {
@@ -333,9 +329,7 @@ int main(int argc, char *argv[])
     fstat(fd, &sb);
 
     p = mmap(NULL, sb.st_size, PROT_READ, MAP_SHARED, fd, 0);
-    unsigned char *osName = malloc(sizeof(char));
-    unsigned char *diskLabel = malloc(sizeof(char));
-
+    
     if (p == MAP_FAILED)
     {
         printf("Error: failed to map memory\n");
@@ -345,7 +339,7 @@ int main(int argc, char *argv[])
     int reserved_sectors = (p[11] + (p[12] << 8)) * (p[14] + (p[15] << 8));
     // printf(" Bytes per sector : %d , Boot sectors:  %d\n", (p[11]+(p[12]<<8)), (p[14]+(p[15]<<8)) );
     fat_table_location = p;
-    fat_table_location += SECTOR_SIZE; // + reserved_sectors;
+    fat_table_location += reserved_sectors; // + reserved_sectors;
 
     //get free size of disk
     print_entire_image();
