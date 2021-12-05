@@ -157,7 +157,7 @@ void parse_sub(unsigned char *fat_location, int flc, char* dir_path)
                 temp2[j + 1] = '\0';
                 strcat(dir_path, temp2);
                 printf("/%s", dir_path);
-                printf("\n=================\n");
+                printf("\n==================\n");
                 parse_sub(fat_location, temp[i + 26] + (temp[i + 27] << 8), dir_path);
             }
         }
@@ -178,7 +178,7 @@ void print_entire_image()
     int count = 0;
     //print contents of current directory
     char *dir_path = malloc(sizeof(char));
-    printf("Root\n=================\n");
+    printf("Root\n==================\n");
 
     unsigned char *print_root = temp;
 
@@ -222,7 +222,7 @@ void print_entire_image()
             dir_path[i] = '/';
             dir_path[i + 1] = '\0';
             printf("/%s", dir_path);
-            printf("\n=================\n");
+            printf("\n==================\n");
 
             parse_sub(fat_table_location, temp[26] + (temp[27] << 8), dir_path);
         }
@@ -280,7 +280,7 @@ void print_directory(unsigned char *path)
         if ((temp[11] & 0x10) == 0)
         {
 
-            printf("F: ");
+            printf("F ");
             //print file size
             int size = filesize(temp);
             printf("%10d", size);
@@ -289,7 +289,7 @@ void print_directory(unsigned char *path)
         }
         else
         {
-            printf("D: ");
+            printf("D ");
             //print directory size
             printf("%10d",0);
             print_subdir_name(temp);
