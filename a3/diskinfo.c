@@ -10,15 +10,15 @@
 
 #define SECTOR_SIZE 512
 
-char *fat_table_location;
+unsigned char *fat_table_location;
 FILE *diskfile;
-char *p;
+unsigned char *p;
 
-int get_FAT_entry(char *p, int n);
+int get_FAT_entry(unsigned char *p, int n);
 
-void print_directory(char *path);
+void print_directory(unsigned char *path);
 
-void print_OS_Name(char *osName)
+void print_OS_Name(unsigned char *osName)
 {
 
     for (int i = 0; i < 8; i++)
@@ -29,12 +29,12 @@ void print_OS_Name(char *osName)
     printf("OS Name: %s\n", osName);
 }
 
-void print_diskLabel(char *diskLabel)
+void print_diskLabel(unsigned char *diskLabel)
 {
 
     int i = 0;
-    char extension[3];
-    char *temp = p;
+    unsigned char extension[3];
+    unsigned char *temp = p;
     temp += SECTOR_SIZE * 19; //go to root directory.
     while (temp[0] != 0x00)
     { //search the entries. If first byte is 0, then all available entries visited.
@@ -83,7 +83,7 @@ int countEmptyFATentries(int totalSize)
     return count * SECTOR_SIZE;
 }
 
-int get_FAT_entry(char *p, int n)
+int get_FAT_entry(unsigned char *p, int n)
 {
 
     int result, low4bits, high4bits, _8bits;
@@ -134,28 +134,47 @@ void print_freesize()
     printf("Free size of the disk: %d bytes\n\n", countEmptyFATentries(totalDiskSize()));
 }
 
-void parse_sub(char *fat_location, int flc)
+void parse_sub(unsigned char *fat_location, int flc)
 {
     int addr = 0;
     int total_count = 0;
-    char sector_data[512];
-    char *temp = p;
+    unsigned char sector_data[512];
+    unsigned char *temp = p;
     // printf("first_logical_cluster: %p\n", get_FAT_entry(p, flc));
-    int path = (31 + (int)flc) * SECTOR_SIZE;
-    temp += path;
+    // int path = (31 + (int)flc) * SECTOR_SIZE;
+    // temp += path;
     //printf("\nCurrent location: %p\n", flc);
     int next_loc = flc;
-    //print_directory(temp);
+    // printf("\nNext loc:%p\n", next_loc);
+   
     while (next_loc <= 0xff5)
     {
+        temp = p;
+        int path = (31 + (int)next_loc) * SECTOR_SIZE;
+        temp += path;
+       // printf("%s\n", &temp[32]+32);
+        print_directory(temp);
+        printf("\n");
+        next_loc = get_FAT_entry(fat_table_location,next_loc);
+    }
+
+    next_loc = flc;
+
+    while (next_loc <= 0xff5)
+    {
+        temp = p;
+        int path = (31 + (int)next_loc) * SECTOR_SIZE;
+        temp += path;
+        //printf("%s\n", temp);
+        //get the values in the data sector.
         for (int i = 0; i < 512; i += 32)
         {
-            if (temp[i + 26] == 0x00 || temp[i + 26] == 0x01 || temp[i + 11] == 0x0F || (temp[i + 11] & 0x08) != 0 || temp[i] == '.')
+           // printf("%s", &temp[i]);
+           
+            if ((temp[i + 26] + (temp[i+27] << 8)) == 0x00 || (temp[i + 26] + (temp[i+27] << 8)) == 0x01 || temp[i + 11] == 0x0F || (temp[i + 11] & 0x08) != 0 || temp[i] == '.' || temp[i] == 0xE5)
             {
                 continue;
             }
-           
-            printf("%s\n", &temp[i]);
 
             if ((temp[i + 11] & 0x10) == 0)
             {
@@ -165,12 +184,15 @@ void parse_sub(char *fat_location, int flc)
 
             else
             {
-                printf("\n%p\n", get_FAT_entry(fat_location, next_loc));
+                //printf("\n%p\n", get_FAT_entry(fat_location, next_loc));
                 // total_count += parse_sub(fat_location, get_FAT_entry(fat_location, next_loc));
-                parse_sub(fat_location, get_FAT_entry(fat_location, next_loc));
+                //go to the next subdirectory.
+                printf("\n%s/", &temp[i]);
+                printf("\n=================\n");
+                parse_sub(fat_location, temp[i+26] + (temp[i+27] << 8));
             }
         }
-        next_loc = get_FAT_entry(fat_location, next_loc);
+        next_loc = get_FAT_entry(fat_table_location,next_loc);
     }
     // return total_count;
     // printf("\nnext sector: %p\n", next_loc);
@@ -180,25 +202,38 @@ void parse_sub(char *fat_location, int flc)
     // }
 }
 
+void maxRootEntries(){
+    int value = p[17] + (p[18] << 8);
+    printf("%d", value);
+}
+
 void print_num_of_files()
 {
-    char *temp = p;
+    unsigned char *temp = p;
     temp += SECTOR_SIZE * 19; //move to the root directory.
     int count = 0;
     //print contents of current directory
-    // printf("ROOT/\n=================\n");
-    // print_directory(temp);
-    // printf("\n");
+
+    printf("ROOT/\n=================\n");
+
+    unsigned char* print_root = temp;
+
+    for(int i=0; i<19; i++){
+        if(print_root[0]==0x00){
+            break;
+        }
+        print_directory(print_root);
+        printf("\n");
+        print_root += SECTOR_SIZE;
+    }
 
     while (temp[0] != 0x00) //directory entry is not free.
     {
-        if (temp[26] == 0x00 || temp[26] == 0x01 || temp[11] == 0x0F || (temp[11] & 0x08) != 0)
+        if ( (temp[26] + (temp[27] << 8)) == 0x00 || (temp[26] + (temp[27] << 8)) == 0x01 || temp[11] == 0x0F || (temp[11] & 0x08) != 0 || temp[0] == 0xE5)
         {
             temp += 32;
             continue;
         }
-
-        //printf("\n%s\n", &temp[0]);
         //check if the entry is a subdirectory, entry is hidden.
         if ((temp[11] & 0x10) == 0)
         {
@@ -206,46 +241,47 @@ void print_num_of_files()
         }
         else
         {
-            // printf("\n%p\n", temp[26] + (temp[27] << 8));
-            // int x = get_FAT_entry(fat_table_location, temp[26] + (temp[27] << 8));
-            // printf("\n%p\n", x);
-            // x = get_FAT_entry(fat_table_location, x);
-            // printf("\n%p\n", x);
-
-            //  printf("%s",&temp[0]);
-            //  printf("\n=================\n");
+            printf("%s/", &temp[0]);
+            printf("\n=================\n");
             // count += parse_sub(fat_table_location, temp[26] + (temp[27] << 8));
             parse_sub(fat_table_location, temp[26] + (temp[27] << 8));
         }
 
         temp += 32;
     }
-   // printf("\nval : %d\n", count);
+    // printf("\nval : %d\n", count);
     //printf("The number of files in the disk (including all files in the root directory and files in all subdirectories): %d\n\n", count);
 }
 
-void print_directory(char *path)
+void print_directory(unsigned char *path)
 {
 
-    char *temp = path;
+    unsigned char *temp = path;
     //temp += SECTOR_SIZE * 19; //move to the root directory.
     int count = 0;
-    while (temp[0] != 0x00) //directory entry is not free.
+
+    while (temp[0] != 0x00 && (temp-path)<512) //directory entry is not free.
     {
-        if (temp[26] == 0x00 || temp[26] == 0x01 || temp[11] == 0x0F || (temp[11] & 0x08) != 0 || temp[0] == '.')
+       // printf("temp -> %s\n", temp);
+        // for(int i=0;i<32;i++) printf("%p ", temp[i]);
+        // printf("\n");
+        if ((temp[26] + (temp[27] << 8)) == 0x00 || (temp[26] + (temp[27] << 8)) == 0x01 || temp[11] == 0x0F || (temp[11] & 0x08) != 0 || temp[0] == '.' || temp[0] == 0xE5)
         {
             temp += 32;
             continue;
         }
+        
+       // printf("Value -> %p\n", (temp[26] + (temp[27] << 8)));
         //printf("\n%s\n", &temp[0]);
         //check if the entry is a subdirectory, entry is hidden.
+        //printf("temp\n");
         if ((temp[11] & 0x10) == 0)
         {
             printf("F: %s\n", &temp[0]);
         }
         else
         {
-            printf("S: %s\n", &temp[0]);
+            printf("D: %s\n", &temp[0]);
         }
         temp += 32;
     }
@@ -301,8 +337,8 @@ int main(int argc, char *argv[])
     fstat(fd, &sb);
 
     p = mmap(NULL, sb.st_size, PROT_READ, MAP_SHARED, fd, 0);
-    char *osName = malloc(sizeof(char));
-    char *diskLabel = malloc(sizeof(char));
+    unsigned char *osName = malloc(sizeof(char));
+    unsigned char *diskLabel = malloc(sizeof(char));
 
     if (p == MAP_FAILED)
     {
@@ -329,7 +365,7 @@ int main(int argc, char *argv[])
     //printf("==============\n");
     //get free size of disk
     print_num_of_files();
-
+    //printf("value-> %p\n",get_FAT_entry(fat_table_location, 0));
     // printf("==============\n");
     // //number of files in disk
     // //number of fat copies
