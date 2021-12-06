@@ -10,33 +10,46 @@
 
 #define SECTOR_SIZE 512
 
-unsigned  char *fat_table_location;
-FILE *diskfile;
-unsigned  char *p;
+/*Store the location of FAT table for easy accessing*/
+unsigned char *fat_table_location;
 
+/*map memory of disk.*/
+unsigned char *p;
+
+/*Get the FAT entry values for calculating the free space.*/
 int get_free_space_FAT_entry(unsigned char *p, int n);
+
+/*Get the FAT entry values for directory parsing.*/
 int get_FAT_entry(unsigned char *p, int n);
 
+/*Print the name of the OS.*/
 void print_OS_Name(unsigned char *osName)
 {
-
+    /*Read values from boot sector*/
     for (int i = 0; i < 8; i++)
     {
         osName[i] = p[i + 3];
     }
 
+    /*Print the name*/
     printf("OS Name: %s\n", osName);
 }
 
+/*Print the label of the disk.*/
 void print_diskLabel(unsigned char *diskLabel)
 {
-    char extension[3];
+    // char extension[3];  /*get the extension values of disk label*/
+    /*Create a temp pointer*/
     unsigned char *temp = p;
-    temp += SECTOR_SIZE * 19; //go to root directory.
+    //go to root directory.
+    temp += SECTOR_SIZE * 19;
+
+    //search the entries. If first byte is 0, then all available entries visited.
     while (temp[0] != 0x00)
-    { //search the entries. If first byte is 0, then all available entries visited.
+    {
+        //if 11th byte has 3rd bit set, it is the volume label.
         if ((temp[11] != 0x0F) && ((temp[11] & 0x08) == 0x08))
-        { //if 11th byte has 3rd bit set, it is the volume label.
+        {
             int i = 0;
             // get the filename
             for (i = 0; i < 8; i++)
@@ -44,25 +57,25 @@ void print_diskLabel(unsigned char *diskLabel)
                 diskLabel[i] = temp[i];
             }
             //get the extension
-            for (i = 0; i < 3; i++)
-            {
-                extension[i] = temp[i];
-            }
+            // for (i = 0; i < 3; i++)
+            // {
+            //     extension[i] = temp[i];
+            // }
         }
         temp += 32;
     }
 
-    if (!strcmp(extension, "   "))
-    {
-        printf("Label of the disk: %s.%s\n", diskLabel, extension);
-    }
-    else
-    {
-        printf("Label of the disk: %s\n", diskLabel);
-    }
+    // if (extension[0]!= ' ')
+    // {
+    //     printf("Label of the disk: \"%s.%s\"\n", diskLabel, extension);
+    // }
+    // else
+    // {
+    printf("Label of the disk: %s\n", diskLabel);
+    // }
 }
 
-
+/*Get the total size of the disk.*/
 int totalDiskSize()
 {
     //defined as number of sectors * total sector count.
@@ -72,27 +85,31 @@ int totalDiskSize()
     return bytesPerSector * totalSectorCount;
 }
 
-
+/*Count the empty FAT entries*/
 int countEmptyFATentries()
 {
     int freeSizeOfDisk = 0;
     int SizeOfDisk = totalDiskSize();
+    /*Check the values in the FAT sectors*/
     for (int i = 2; i < (SizeOfDisk / SECTOR_SIZE) - 31; i++)
     {
+        // Check if the FAT entry is 0x00 (empty sector)
         if (get_free_space_FAT_entry(p, i) == 0x00)
-        { // if the value of the FAT entry is 0x00 then that's an empty sector
+        {
             freeSizeOfDisk++;
         }
     }
-
+    /*Return the value in bytes.*/
     return freeSizeOfDisk * SECTOR_SIZE;
 }
 
+/*Print the free size of the disk.*/
 void print_freesize()
 {
     printf("Free size of the disk: %d bytes\n\n", countEmptyFATentries());
 }
 
+/* Calculate the values of the FAT entry for calculating the free size. */
 int get_free_space_FAT_entry(unsigned char *p, int n)
 {
 
@@ -104,7 +121,7 @@ int get_free_space_FAT_entry(unsigned char *p, int n)
         If n is even, then the physical location of the entry is the low four bits in location 1+(3*n)/2 
         and the 8 bits in location (3*n)/2 */
 
-        low4bits = p[ SECTOR_SIZE + ((3 * n) / 2) + 1] & 0x0F; // stored first
+        low4bits = p[SECTOR_SIZE + ((3 * n) / 2) + 1] & 0x0F; // stored first
         _8bits = p[SECTOR_SIZE + ((3 * n) / 2)] & 0xFF;       // stored second.
         result = (low4bits << 8) + _8bits;
     }
@@ -123,7 +140,7 @@ int get_free_space_FAT_entry(unsigned char *p, int n)
     return result;
 }
 
-
+/* Calculates the values of the FAT entries while parsing over the subdirectories. */
 int get_FAT_entry(unsigned char *p, int n)
 {
 
@@ -156,97 +173,112 @@ int get_FAT_entry(unsigned char *p, int n)
 
 void print_totalDiskSize()
 {
-    //defined as number of sectors * total sector count.
-    //endianness in order of bytes. move MSByte by 8 places to left and then add LSByte.
+    /* size of one sector * total sector count.*/
     printf("Total size of the disk: %d bytes\n", totalDiskSize());
 }
 
+/*Parse all the subdirectories and count the files*/
 int parse_sub(int flc)
 {
     int total_count = 0;
     unsigned char *temp = p;
     int next_loc = flc;
 
+    /*If the cluster is reserved or is last */
     while (next_loc <= 0xff5)
     {
+        /*Create local variable to calculate the path*/
         temp = p;
         int path = (31 + (int)next_loc) * SECTOR_SIZE;
-        temp += path;
+        temp += path;   
 
+        /*Parse over the sector*/
         for (int i = 0; i < 512; i += 32)
         {
+            /*Check if the directory entry is valid/empty/volume label or not. If so, skip*/
             if ((temp[i + 26] + (temp[i + 27] << 8)) == 0x00 || (temp[i + 26] + (temp[i + 27] << 8)) == 0x01 || temp[i + 11] == 0x0F || (temp[i + 11] & 0x08) != 0 || temp[i] == '.' || temp[i] == 0xE5)
             {
                 continue;
             }
-
+            /*If directory entry is a file*/
             if ((temp[i + 11] & 0x10) == 0)
             {
+                /*increment count*/
                 total_count++;
                 continue;
             }
 
             else
             {
-                //go to the next subdirectory.
+                /*go to the next subdirectory.*/
                 total_count += parse_sub(temp[i + 26] + (temp[i + 27] << 8));
             }
         }
+        /*Get the next sector using the FAT table.*/
         next_loc = get_FAT_entry(fat_table_location, next_loc);
     }
     return total_count;
 }
 
+/*Find the value if the maximum number of root entries*/
 void maxRootEntries()
 {
     int value = p[17] + (p[18] << 8);
     printf("%d", value);
 }
 
+/*Calculate the num of files in our disk. */
 void print_num_of_files()
 {
     unsigned char *temp = p;
-    temp += SECTOR_SIZE * 19; //move to the root directory.
+    //move to the root directory.
+    temp += SECTOR_SIZE * 19;
     int count = 0;
-    //print contents of current directory
-
-    while (temp[0] != 0x00) //directory entry is not free.
+   
+    while (temp[0] != 0x00) //check for all entries till its not free.
     {
+        /*Check if the directory entry is valid/empty/volume label or not*/
         if ((temp[26] + (temp[27] << 8)) == 0x00 || (temp[26] + (temp[27] << 8)) == 0x01 || temp[11] == 0x0F || (temp[11] & 0x08) != 0 || temp[0] == 0xE5)
         {
             temp += 32;
             continue;
         }
-        //check if the entry is a subdirectory, entry is hidden.
+        //check if the entry is a file..
         if ((temp[11] & 0x10) == 0)
         {
             count++;
         }
+
         else
         {
+            /*calculate num of files in the subdirectories.*/
             count += parse_sub(temp[26] + (temp[27] << 8));
         }
-
+        /*move to next directory entry*/
         temp += 32;
     }
-    printf("The number of files in the image: %d\n\n", count);
+    printf("The number of files in the disk (including all files in the root directory and files in all subdirectories): %d\n\n", count);
 }
 
+/*Calculate num of FAT copies*/
 int num_fat_copies()
 {
     return p[16];
 }
 
+/*Print num of FAT copies*/
 void print_num_fat_copies(int num)
 {
     printf("Number of FAT copies: %d\n", num);
 }
 
+/*Num of sectors per FAT*/
 int sectors_per_FAT()
 {
     return p[22] + (p[23] << 8);
 }
 
+/*Print num of sectors per FAT*/
 void print_sectors_per_fat(int num)
 {
     printf("Sectors per FAT: %d\n", num);
@@ -256,8 +288,8 @@ int main(int argc, char *argv[])
 {
     int fd;
     struct stat sb;
-    diskfile = fopen(argv[1], "r");
 
+    /*Check if the arguments are valid or not.*/
     if (argc > 2)
     {
         printf("Too many arguments. Need 1\n");
@@ -270,6 +302,7 @@ int main(int argc, char *argv[])
         return 1;
     }
 
+    /*Open the disk file*/
     fd = open(argv[1], O_RDWR);
 
     if (fd < 0)
@@ -278,47 +311,47 @@ int main(int argc, char *argv[])
         return 1;
     }
 
-    // map disk file to virtual memory to read it using file descriptor.
+    /* map disk file to virtual memory using mmap to read it. */
     fstat(fd, &sb);
 
     p = mmap(NULL, sb.st_size, PROT_READ, MAP_SHARED, fd, 0);
     unsigned char *osName = malloc(sizeof(char));
     unsigned char *diskLabel = malloc(sizeof(char));
-
+    
+    /*If map fails*/
     if (p == MAP_FAILED)
     {
         printf("Error: failed to map memory\n");
         exit(1);
     }
 
-
+    /*Calculate the num of reserved sectors*/
     int reserved_sectors = (p[11] + (p[12] << 8)) * (p[14] + (p[15] << 8));
-    // printf(" Bytes per sector : %d , Boot sectors:  %d\n", (p[11]+(p[12]<<8)), (p[14]+(p[15]<<8)) );
     fat_table_location = p;
-    fat_table_location += reserved_sectors; // + reserved_sectors;
+    /*Store the location of the FAT table*/
+    fat_table_location += reserved_sectors;
 
-    //get OS name
+    // get OS name
     print_OS_Name(osName);
 
-    // //get label of disk
+    // get label of disk
     print_diskLabel(diskLabel);
 
-    // //get total size of disk
+    // get total size of disk
     print_totalDiskSize();
 
-    //get free size of disk
+    // get free size of disk
     print_freesize();
-    
+
     printf("==============\n");
 
-    // print num of files
+    // print num of files in disk
     print_num_of_files();
 
     printf("==============\n");
-    // //number of files in disk
-    // //number of fat copies
+    // number of fat copies
     print_num_fat_copies(num_fat_copies());
-    // //number of sectors per fat
+    // number of sectors per fat
     print_sectors_per_fat(sectors_per_FAT());
 
     return 0;
