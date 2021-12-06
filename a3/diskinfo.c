@@ -185,7 +185,7 @@ int parse_sub(int flc)
     int next_loc = flc;
 
     /*If the cluster is reserved or is last */
-    while (next_loc <= 0xff5)
+    while (next_loc <= 0xff0)
     {
         /*Create local variable to calculate the path*/
         temp = p;

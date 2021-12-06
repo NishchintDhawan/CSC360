@@ -121,7 +121,7 @@ void parse_sub(unsigned char *fat_location, int flc, char *dir_path)
     int next_loc = flc;
 
     /*Check if its reserved/last sector. Print contents of each sector for this subdirectory.*/
-    while (next_loc <= 0xff5)
+    while (next_loc <= 0xff0)
     {
         temp = p;
         int path = (31 + (int)next_loc) * SECTOR_SIZE;
@@ -136,7 +136,7 @@ void parse_sub(unsigned char *fat_location, int flc, char *dir_path)
     next_loc = flc;
 
     /*If it is reserved/last cluster. */
-    while (next_loc <= 0xff5)
+    while (next_loc <= 0xff0)
     {
         temp = p;
         /*Move to the data cluster for this sector*/
@@ -188,10 +188,10 @@ void parse_sub(unsigned char *fat_location, int flc, char *dir_path)
 }
 
 /*Get the maximum root directiry entries.*/
-void maxRootEntries()
+int maxRootEntries()
 {
     int value = p[17] + (p[18] << 8);
-    printf("%d", value);
+    return value;
 }
 
 /*Print the entire disk image*/
@@ -221,12 +221,16 @@ void print_entire_image()
         print_root += SECTOR_SIZE;
     }
 
-    while (temp[0] != 0x00) //check for all directory entries till its not free.
+    int countEntries=0;
+    int maxEntries = maxRootEntries();
+
+    while (temp[0] != 0x00 && countEntries<maxEntries) //check for all directory entries till its not free.
     {
         /*Check if the directory entry is valid or not. Must be a file or subdirectory.*/
         if ((temp[26] + (temp[27] << 8)) == 0x00 || (temp[26] + (temp[27] << 8)) == 0x01 || temp[11] == 0x0F || (temp[11] & 0x08) != 0 || temp[0] == 0xE5)
         {
             temp += 32;
+            countEntries++;
             continue;
         }
 
@@ -234,6 +238,7 @@ void print_entire_image()
         if ((temp[11] & 0x10) == 0)
         {
             temp += 32;
+            countEntries++;
             continue;
         }
 
@@ -259,6 +264,8 @@ void print_entire_image()
             /*Print the path*/
             printf("/%s", dir_path);
             printf("\n==================\n");
+
+            countEntries++;
 
             /*Move to the subdirectory*/
             parse_sub(fat_table_location, temp[26] + (temp[27] << 8), dir_path);
@@ -396,7 +403,6 @@ int main(int argc, char *argv[])
 
     /*Get the location of FAT table*/
     fat_table_location += reserved_sectors;
-
     /*Print the all disk files and subdirectories*/
     print_entire_image();
 
